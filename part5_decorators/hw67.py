@@ -55,9 +55,7 @@ class CircuitBreaker:
         self._failures = 0
         self._block_until: datetime.datetime | None = None
 
-    def __call__(
-        self, fn: CallableWithMeta[P, R_co]
-    ) -> CallableWithMeta[P, R_co]:
+    def __call__(self, fn: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
         fn_full = f"{fn.__module__}.{fn.__name__}"
 
         @functools.wraps(fn)
@@ -79,9 +77,7 @@ class CircuitBreaker:
                 self._failures += 1
                 if self._failures >= self._critical:
                     block_start = datetime.datetime.now(datetime.UTC)
-                    self._block_until = block_start + datetime.timedelta(
-                        seconds=self._recovery
-                    )
+                    self._block_until = block_start + datetime.timedelta(seconds=self._recovery)
                     self._failures = 0
                     raise BreakerError(fn_full, block_start, exc) from exc
                 raise
@@ -96,9 +92,7 @@ circuit_breaker = CircuitBreaker(5, 30, Exception)
 
 
 def get_comments(post_id: int) -> Any:
-    response = urlopen(
-        f"https://jsonplaceholder.typicode.com/comments?postId={post_id}"
-    )
+    response = urlopen(f"https://jsonplaceholder.typicode.com/comments?postId={post_id}")
     return json.loads(response.read())
 
 
