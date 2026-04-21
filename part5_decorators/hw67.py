@@ -1,7 +1,7 @@
 import datetime
 import functools
 import json
-from typing import Any, ParamSpec, Protocol, TypeVar
+from typing import Any, NoReturn, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
 
 INVALID_CRITICAL_COUNT = "Breaker count must be positive integer!"
@@ -65,7 +65,7 @@ class CircuitBreaker:
             try:
                 result = fn(*args, **kwargs)
             except self._triggers_on as exc:
-                return self._on_failure(exc, fn_full)
+                self._on_failure(exc, fn_full)
             else:
                 self._failures = 0
                 return result
@@ -84,7 +84,7 @@ class CircuitBreaker:
 
         raise BreakerError(fn_full, now)
 
-    def _on_failure(self, exc: Exception, fn_full: str) -> None:
+    def _on_failure(self, exc: Exception, fn_full: str) -> NoReturn:
         self._failures += 1
         if self._failures < self._critical:
             raise exc
