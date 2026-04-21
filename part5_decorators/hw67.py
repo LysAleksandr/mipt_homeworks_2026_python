@@ -1,13 +1,24 @@
+import datetime
 import functools
 import json
-import datetime
+from collections.abc import Callable
+from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
-from typing import Any, Callable
 
 INVALID_CRITICAL_COUNT = "Breaker count must be positive integer!"
 INVALID_RECOVERY_TIME = "Breaker recovery time must be positive integer!"
 VALIDATIONS_FAILED = "Invalid decorator args."
 TOO_MUCH = "Too much requests, just wait."
+
+P = ParamSpec("P")
+R_co = TypeVar("R_co", covariant=True)
+
+
+class CallableWithMeta(Protocol[P, R_co]):
+    __name__: str
+    __module__: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
 
 
 class BreakerError(Exception):
@@ -45,16 +56,21 @@ class CircuitBreaker:
         self._failures = 0
         self._block_until: datetime.datetime | None = None
 
-    def __call__(self, fn: Callable) -> Callable:
+    def __call__(
+        self, fn: CallableWithMeta[P, R_co]
+    ) -> CallableWithMeta[P, R_co]:
         fn_full = f"{fn.__module__}.{fn.__name__}"
 
         @functools.wraps(fn)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> R_co:
             now = datetime.datetime.now(datetime.UTC)
 
             if self._block_until is not None:
                 if now < self._block_until:
-                    raise BreakerError(fn_full, self._block_until - datetime.timedelta(seconds=self._recovery))
+                    raise BreakerError(
+                        fn_full,
+                        self._block_until - datetime.timedelta(seconds=self._recovery),
+                    )
                 self._failures = 0
                 self._block_until = None
 
@@ -64,7 +80,9 @@ class CircuitBreaker:
                 self._failures += 1
                 if self._failures >= self._critical:
                     block_start = datetime.datetime.now(datetime.UTC)
-                    self._block_until = block_start + datetime.timedelta(seconds=self._recovery)
+                    self._block_until = block_start + datetime.timedelta(
+                        seconds=self._recovery
+                    )
                     self._failures = 0
                     raise BreakerError(fn_full, block_start, exc) from exc
                 raise
@@ -72,14 +90,16 @@ class CircuitBreaker:
                 self._failures = 0
                 return result
 
-        return wrapped
+        return wrapped  # type: ignore[return-value]
 
 
 circuit_breaker = CircuitBreaker(5, 30, Exception)
 
 
 def get_comments(post_id: int) -> Any:
-    response = urlopen(f"https://jsonplaceholder.typicode.com/comments?postId={post_id}")
+    response = urlopen(
+        f"https://jsonplaceholder.typicode.com/comments?postId={post_id}"
+    )
     return json.loads(response.read())
 
 
