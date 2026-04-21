@@ -60,24 +60,19 @@ class CircuitBreaker:
 
         @functools.wraps(fn)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R_co:
-            self._ensure_not_blocked(fn_full)
+            self._check_blocked(fn_full)
 
             try:
                 result = fn(*args, **kwargs)
             except self._triggers_on as exc:
-                self._failures += 1
-                if self._failures >= self._critical:
-                    self._block_until = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=self._recovery)
-                    self._failures = 0
-                    raise BreakerError(fn_full, self._block_until, exc) from exc
-                raise
+                return self._on_failure(exc, fn_full)
             else:
                 self._failures = 0
                 return result
 
         return wrapped
 
-    def _ensure_not_blocked(self, fn_full: str) -> None:
+    def _check_blocked(self, fn_full: str) -> None:
         if self._block_until is None:
             return
 
@@ -87,10 +82,17 @@ class CircuitBreaker:
             self._block_until = None
             return
 
-        raise BreakerError(
-            fn_full,
-            self._block_until - datetime.timedelta(seconds=self._recovery),
-        )
+        raise BreakerError(fn_full, now)
+
+    def _on_failure(self, exc: Exception, fn_full: str) -> None:
+        self._failures += 1
+        if self._failures < self._critical:
+            raise exc
+
+        block_time = datetime.datetime.now(datetime.UTC)
+        self._block_until = block_time + datetime.timedelta(seconds=self._recovery)
+        self._failures = 0
+        raise BreakerError(fn_full, block_time, exc) from exc
 
 
 circuit_breaker = CircuitBreaker(5, 30, Exception)
