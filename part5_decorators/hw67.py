@@ -55,47 +55,34 @@ class CircuitBreaker:
         self._failures = 0
         self._block_until: datetime.datetime | None = None
 
-    def _is_blocked(self, now: datetime.datetime) -> bool:
-        if self._block_until is None:
-            return False
-        if now < self._block_until:
-            return True
-        self._failures = 0
-        self._block_until = None
-        return False
-
-    def _handle_failure(
-        self, exc: Exception, fn_full: str, now: datetime.datetime
-    ) -> None:
+    def _process_failure(self, exc: Exception, fn_full: str, now: datetime.datetime) -> None:
         self._failures += 1
-        if self._failures < self._critical:
-            raise exc
-        self._block_until = now + datetime.timedelta(seconds=self._recovery)
-        self._failures = 0
-        raise BreakerError(fn_full, now, exc) from exc
+        if self._failures >= self._critical:
+            self._block_until = now + datetime.timedelta(seconds=self._recovery)
+            self._failures = 0
+            raise BreakerError(fn_full, now, exc) from exc
+        raise exc
 
-    def _handle_success(self) -> None:
-        self._failures = 0
-
-    def __call__(
-        self, fn: CallableWithMeta[P, R_co]
-    ) -> CallableWithMeta[P, R_co]:
+    def __call__(self, fn: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
         fn_full = f"{fn.__module__}.{fn.__name__}"
 
         @functools.wraps(fn)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R_co:
             now = datetime.datetime.now(datetime.UTC)
-            if self._is_blocked(now):
-                raise BreakerError(
-                    fn_full,
-                    self._block_until - datetime.timedelta(seconds=self._recovery),
-                )
+
+            if self._block_until is not None and now < self._block_until:
+                block_start = self._block_until - datetime.timedelta(seconds=self._recovery)
+                raise BreakerError(fn_full, block_start)
+            if self._block_until is not None and now >= self._block_until:
+                self._failures = 0
+                self._block_until = None
+
             try:
                 result = fn(*args, **kwargs)
             except self._triggers_on as exc:
-                self._handle_failure(exc, fn_full, now)
+                self._process_failure(exc, fn_full, now)
             else:
-                self._handle_success()
+                self._failures = 0
                 return result
 
         return wrapped
@@ -105,9 +92,7 @@ circuit_breaker = CircuitBreaker(5, 30, Exception)
 
 
 def get_comments(post_id: int) -> Any:
-    response = urlopen(
-        f"https://jsonplaceholder.typicode.com/comments?postId={post_id}"
-    )
+    response = urlopen(f"https://jsonplaceholder.typicode.com/comments?postId={post_id}")
     return json.loads(response.read())
 
 
