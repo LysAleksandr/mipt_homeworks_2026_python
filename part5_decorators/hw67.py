@@ -55,37 +55,42 @@ class CircuitBreaker:
         self._failures = 0
         self._block_until: datetime.datetime | None = None
 
-    def _process_failure(self, exc: Exception, fn_full: str, now: datetime.datetime) -> None:
-        self._failures += 1
-        if self._failures >= self._critical:
-            self._block_until = now + datetime.timedelta(seconds=self._recovery)
-            self._failures = 0
-            raise BreakerError(fn_full, now, exc) from exc
-        raise exc
-
     def __call__(self, fn: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
         fn_full = f"{fn.__module__}.{fn.__name__}"
 
         @functools.wraps(fn)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R_co:
-            now = datetime.datetime.now(datetime.UTC)
-
-            if self._block_until is not None and now < self._block_until:
-                block_start = self._block_until - datetime.timedelta(seconds=self._recovery)
-                raise BreakerError(fn_full, block_start)
-            if self._block_until is not None and now >= self._block_until:
-                self._failures = 0
-                self._block_until = None
+            self._ensure_not_blocked(fn_full)
 
             try:
                 result = fn(*args, **kwargs)
             except self._triggers_on as exc:
-                self._process_failure(exc, fn_full, now)
+                self._failures += 1
+                if self._failures >= self._critical:
+                    self._block_until = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=self._recovery)
+                    self._failures = 0
+                    raise BreakerError(fn_full, self._block_until, exc) from exc
+                raise
             else:
                 self._failures = 0
                 return result
 
         return wrapped
+
+    def _ensure_not_blocked(self, fn_full: str) -> None:
+        if self._block_until is None:
+            return
+
+        now = datetime.datetime.now(datetime.UTC)
+        if now >= self._block_until:
+            self._failures = 0
+            self._block_until = None
+            return
+
+        raise BreakerError(
+            fn_full,
+            self._block_until - datetime.timedelta(seconds=self._recovery),
+        )
 
 
 circuit_breaker = CircuitBreaker(5, 30, Exception)
