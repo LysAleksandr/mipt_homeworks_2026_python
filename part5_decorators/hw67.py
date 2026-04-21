@@ -1,7 +1,6 @@
 import datetime
 import functools
 import json
-from collections.abc import Callable
 from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
 
@@ -90,7 +89,7 @@ class CircuitBreaker:
                 self._failures = 0
                 return result
 
-        return wrapped  # type: ignore[return-value]
+        return wrapped
 
 
 circuit_breaker = CircuitBreaker(5, 30, Exception)
