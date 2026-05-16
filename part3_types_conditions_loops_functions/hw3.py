@@ -86,9 +86,7 @@ def income_handler(amount: float, income_date: str) -> str:
     if date_tuple is None:
         financial_transactions_storage.append({})
         return INCORRECT_DATE_MSG
-    financial_transactions_storage.append(
-        {_AMOUNT_KEY: amount, _DATE_KEY: date_tuple}
-    )
+    financial_transactions_storage.append({_AMOUNT_KEY: amount, _DATE_KEY: date_tuple})
     return OP_SUCCESS_MSG
 
 
@@ -107,19 +105,13 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
     if common not in EXPENSE_CATEGORIES or target not in EXPENSE_CATEGORIES[common]:
         financial_transactions_storage.append({})
         return NOT_EXISTS_CATEGORY
-    financial_transactions_storage.append(
-        {_CATEGORY_KEY: category_name, _AMOUNT_KEY: amount, _DATE_KEY: date_tuple}
-    )
+    financial_transactions_storage.append({_CATEGORY_KEY: category_name, _AMOUNT_KEY: amount, _DATE_KEY: date_tuple})
     return OP_SUCCESS_MSG
 
 
 def cost_categories_handler() -> str:
     entries: list[str] = []
-    entries.extend(
-        f"{key}::{value}"
-        for key, values in EXPENSE_CATEGORIES.items()
-        for value in values
-    )
+    entries.extend(f"{key}::{value}" for key, values in EXPENSE_CATEGORIES.items() for value in values)
     return "\n".join(entries)
 
 
@@ -163,9 +155,7 @@ def _process_transaction(
     return total_delta, month_income_delta, month_expense_delta
 
 
-def compute_stats(
-    day: int, month: int, year: int
-) -> tuple[float, float, float, dict[str, float]]:
+def compute_stats(day: int, month: int, year: int) -> tuple[float, float, float, dict[str, float]]:
     total_capital = _ZERO_FLOAT
     month_income = _ZERO_FLOAT
     month_expenses = _ZERO_FLOAT
@@ -173,9 +163,7 @@ def compute_stats(
     report_tuple = (year, month, day)
 
     for tr in financial_transactions_storage:
-        delta_cap, delta_inc, delta_exp = _process_transaction(
-            tr, report_tuple, details
-        )
+        delta_cap, delta_inc, delta_exp = _process_transaction(tr, report_tuple, details)
         total_capital += delta_cap
         month_income += delta_inc
         month_expenses += delta_exp
