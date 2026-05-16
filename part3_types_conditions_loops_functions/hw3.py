@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Any
+from typing import Any, Iterator
 
 UNKNOWN_COMMAND_MSG = "Unknown command!"
 NONPOSITIVE_VALUE_MSG = "Value must be grater than zero!"
@@ -114,13 +114,15 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
     return OP_SUCCESS_MSG
 
 
-def _category_entry(category: str, subcategory: str) -> str:
-    return f"{category}::{subcategory}"
+def _generate_category_strings() -> Iterator[str]:
+    for key, values in EXPENSE_CATEGORIES.items():
+        for value in values:
+            yield f"{key}::{value}"
 
 
 def cost_categories_handler() -> str:
     entries: list[str] = []
-    entries.extend(_category_entry(key, value) for key, values in EXPENSE_CATEGORIES.items() for value in values)
+    entries.extend(_generate_category_strings())
     return "\n".join(entries)
 
 
