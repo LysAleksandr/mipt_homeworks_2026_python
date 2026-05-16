@@ -39,14 +39,27 @@ _AMOUNT_KEY = "amount"
 _DATE_KEY = "date"
 _CATEGORY_KEY = "category"
 
+_ZERO_FLOAT = 0.0
+
 financial_transactions_storage: list[dict[str, Any]] = []
 
 
 def is_leap_year(year: int) -> bool:
-    divisible_by_4 = year % _LEAP_DIVISOR == 0
-    not_divisible_by_100 = year % _CENTURY_DIVISOR != 0
-    divisible_by_400 = year % _400_DIVISOR == 0
-    return (divisible_by_4 and not_divisible_by_100) or divisible_by_400
+    base_rule = year % _LEAP_DIVISOR == 0 and year % _CENTURY_DIVISOR != 0
+    exception_rule = year % _400_DIVISOR == 0
+    return base_rule or exception_rule
+
+
+def _parse_date_parts(parts: list[str]) -> tuple[int, int, int]:
+    return int(parts[0]), int(parts[1]), int(parts[2])
+
+
+def _max_days_in_month(month: int, year: int) -> int:
+    if month == _FEBRUARY:
+        return 29 if is_leap_year(year) else 28
+    if month in _SHORT_MONTHS:
+        return 30
+    return _MAX_DAY
 
 
 def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
@@ -54,21 +67,13 @@ def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
     if len(parts) != _DATE_PARTS_COUNT:
         return None
     try:
-        day_str, month_str, year_str = parts[0], parts[1], parts[2]
-        day = int(day_str)
-        month = int(month_str)
-        year = int(year_str)
+        day, month, year = _parse_date_parts(parts)
     except ValueError:
         return None
-    if month < _MIN_MONTH or month > _MAX_MONTH:
+    if not (_MIN_MONTH <= month <= _MAX_MONTH):
         return None
-    if month == _FEBRUARY:
-        max_day = 29 if is_leap_year(year) else 28
-    elif month in _SHORT_MONTHS:
-        max_day = 30
-    else:
-        max_day = _MAX_DAY
-    if day < 1 or day > max_day:
+    max_day = _max_days_in_month(month, year)
+    if not (1 <= day <= max_day):
         return None
     return (day, month, year)
 
@@ -105,13 +110,25 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
 
 
 def cost_categories_handler() -> str:
-    entries = []
-    entries.extend(f"{key}::{value}" for key, values in EXPENSE_CATEGORIES.items() for value in values)
+    entries: list[str] = []
+    for key, values in EXPENSE_CATEGORIES.items():
+        for value in values:
+            entries.append(f"{key}::{value}")
     return "\n".join(entries)
 
 
 def _is_expense(record: dict[str, Any]) -> bool:
     return _CATEGORY_KEY in record
+
+
+def _is_same_month_and_day_before(
+    tr_date: tuple[int, int, int],
+    year: int,
+    month: int,
+    day: int,
+) -> bool:
+    tr_day, tr_month, tr_year = tr_date
+    return tr_year == year and tr_month == month and tr_day <= day
 
 
 def _process_transaction(
@@ -121,29 +138,29 @@ def _process_transaction(
 ) -> tuple[float, float, float]:
     tr_date = record.get(_DATE_KEY)
     if tr_date is None:
-        return 0.0, 0.0, 0.0
+        return _ZERO_FLOAT, _ZERO_FLOAT, _ZERO_FLOAT
     year, month, day = report_tuple
-    total_delta = 0.0
-    month_income_delta = 0.0
-    month_expense_delta = 0.0
+    total_delta = _ZERO_FLOAT
+    month_income_delta = _ZERO_FLOAT
+    month_expense_delta = _ZERO_FLOAT
     is_exp = _is_expense(record)
     amount = record[_AMOUNT_KEY]
     if tr_date <= report_tuple:
         total_delta = -amount if is_exp else amount
-    if tr_date[1] == month and tr_date[2] == year and tr_date[0] <= day:
+    if _is_same_month_and_day_before(tr_date, year, month, day):
         if is_exp:
             month_expense_delta = amount
             target = record[_CATEGORY_KEY].split("::")[-1]
-            details[target] = details.get(target, 0.0) + amount
+            details[target] = details.get(target, _ZERO_FLOAT) + amount
         else:
             month_income_delta = amount
     return total_delta, month_income_delta, month_expense_delta
 
 
 def compute_stats(day: int, month: int, year: int) -> tuple[float, float, float, dict[str, float]]:
-    total_capital = 0.0
-    month_income = 0.0
-    month_expenses = 0.0
+    total_capital = _ZERO_FLOAT
+    month_income = _ZERO_FLOAT
+    month_expenses = _ZERO_FLOAT
     details: dict[str, float] = {}
     report_tuple = (year, month, day)
 
@@ -257,6 +274,13 @@ def read_user_line() -> str | None:
         return None
 
 
+def process_single_input(line: str) -> None:
+    parts = line.split()
+    if not parts:
+        return
+    dispatch_command(parts)
+
+
 def main() -> None:
     while True:
         line = read_user_line()
@@ -264,10 +288,7 @@ def main() -> None:
             break
         if not line:
             continue
-        parts = line.split()
-        if not parts:
-            continue
-        dispatch_command(parts)
+        process_single_input(line)
 
 
 if __name__ == "__main__":
