@@ -81,9 +81,7 @@ def income_handler(amount: float, income_date: str) -> str:
     if date_tuple is None:
         financial_transactions_storage.append({})
         return INCORRECT_DATE_MSG
-    financial_transactions_storage.append(
-        {_AMOUNT_KEY: amount, _DATE_KEY: date_tuple}
-    )
+    financial_transactions_storage.append({_AMOUNT_KEY: amount, _DATE_KEY: date_tuple})
     return OP_SUCCESS_MSG
 
 
@@ -102,17 +100,13 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
     if common not in EXPENSE_CATEGORIES or target not in EXPENSE_CATEGORIES[common]:
         financial_transactions_storage.append({})
         return NOT_EXISTS_CATEGORY
-    financial_transactions_storage.append(
-        {_CATEGORY_KEY: category_name, _AMOUNT_KEY: amount, _DATE_KEY: date_tuple}
-    )
+    financial_transactions_storage.append({_CATEGORY_KEY: category_name, _AMOUNT_KEY: amount, _DATE_KEY: date_tuple})
     return OP_SUCCESS_MSG
 
 
 def cost_categories_handler() -> str:
     entries = []
-    for key, values in EXPENSE_CATEGORIES.items():
-        for value in values:
-            entries.append(f"{key}::{value}")
+    entries.extend(f"{key}::{value}" for key, values in EXPENSE_CATEGORIES.items() for value in values)
     return "\n".join(entries)
 
 
@@ -123,47 +117,38 @@ def _is_expense(record: dict[str, Any]) -> bool:
 def _process_transaction(
     record: dict[str, Any],
     report_tuple: tuple[int, int, int],
-    month: int,
-    year: int,
-    day: int,
     details: dict[str, float],
 ) -> tuple[float, float, float]:
     tr_date = record.get(_DATE_KEY)
     if tr_date is None:
-        return 0, 0, 0
-    total_delta = 0
-    month_income_delta = 0
-    month_expense_delta = 0
+        return 0.0, 0.0, 0.0
+    year, month, day = report_tuple
+    total_delta = 0.0
+    month_income_delta = 0.0
+    month_expense_delta = 0.0
     is_exp = _is_expense(record)
     amount = record[_AMOUNT_KEY]
     if tr_date <= report_tuple:
-        if is_exp:
-            total_delta = -amount
-        else:
-            total_delta = amount
+        total_delta = -amount if is_exp else amount
     if tr_date[1] == month and tr_date[2] == year and tr_date[0] <= day:
         if is_exp:
             month_expense_delta = amount
             target = record[_CATEGORY_KEY].split("::")[-1]
-            details[target] = details.get(target, 0) + amount
+            details[target] = details.get(target, 0.0) + amount
         else:
             month_income_delta = amount
     return total_delta, month_income_delta, month_expense_delta
 
 
-def compute_stats(
-    day: int, month: int, year: int
-) -> tuple[float, float, float, dict[str, float]]:
-    total_capital = 0
-    month_income = 0
-    month_expenses = 0
+def compute_stats(day: int, month: int, year: int) -> tuple[float, float, float, dict[str, float]]:
+    total_capital = 0.0
+    month_income = 0.0
+    month_expenses = 0.0
     details: dict[str, float] = {}
     report_tuple = (year, month, day)
 
     for tr in financial_transactions_storage:
-        delta_cap, delta_inc, delta_exp = _process_transaction(
-            tr, report_tuple, month, year, day, details
-        )
+        delta_cap, delta_inc, delta_exp = _process_transaction(tr, report_tuple, details)
         total_capital += delta_cap
         month_income += delta_inc
         month_expenses += delta_exp
