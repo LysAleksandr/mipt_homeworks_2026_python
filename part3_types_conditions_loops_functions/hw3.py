@@ -40,9 +40,7 @@ financial_transactions_storage: list[dict[str, Any]] = []
 
 
 def is_leap_year(year: int) -> bool:
-    return (year % _LEAP_DIVISOR == 0 and year % _CENTURY_DIVISOR != 0) or (
-        year % _400_DIVISOR == 0
-    )
+    return (year % _LEAP_DIVISOR == 0 and year % _CENTURY_DIVISOR != 0) or (year % _400_DIVISOR == 0)
 
 
 def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
@@ -93,21 +91,15 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
     if common not in EXPENSE_CATEGORIES or target not in EXPENSE_CATEGORIES[common]:
         financial_transactions_storage.append({})
         return NOT_EXISTS_CATEGORY
-    financial_transactions_storage.append(
-        {"category": category_name, "amount": amount, "date": date_tuple}
-    )
+    financial_transactions_storage.append({"category": category_name, "amount": amount, "date": date_tuple})
     return OP_SUCCESS_MSG
 
 
 def cost_categories_handler() -> str:
-    return "\n".join(
-        f"{k}::{v}" for k, kv in EXPENSE_CATEGORIES.items() for v in kv
-    )
+    return "\n".join(f"{k}::{v}" for k, kv in EXPENSE_CATEGORIES.items() for v in kv)
 
 
-def compute_stats(
-    day: int, month: int, year: int
-) -> tuple[float, float, float, dict[str, float]]:
+def compute_stats(day: int, month: int, year: int) -> tuple[float, float, float, dict[str, float]]:
     total_capital = 0.0
     month_income = 0.0
     month_expenses = 0.0
@@ -139,9 +131,7 @@ def stats_handler(report_date: str) -> str:
     if parsed is None:
         return INCORRECT_DATE_MSG
     day, month, year = parsed
-    total_capital, month_income, month_expenses, details = compute_stats(
-        day, month, year
-    )
+    total_capital, month_income, month_expenses, details = compute_stats(day, month, year)
 
     lines = []
     lines.append(f"Your statistics as of {report_date}:")
