@@ -29,7 +29,7 @@ SHORT_MONTHS = (4, 6, 9, 11)
 MAX_DAY = 31
 LEAP_DIVISOR = 4
 CENTURY_DIVISOR = 100
-DIVISOR_400 = 400
+FOUR_HUNDRED = 400
 
 INCOME_ARGS_COUNT = 3
 COST_CATEGORIES_ARGS_COUNT = 2
@@ -49,7 +49,7 @@ financial_transactions_storage: list[dict[str, Any]] = []
 
 def is_leap_year(year: int) -> bool:
     base_rule = year % LEAP_DIVISOR == 0 and year % CENTURY_DIVISOR != 0
-    exception_rule = year % DIVISOR_400 == 0
+    exception_rule = year % FOUR_HUNDRED == 0
     return base_rule or exception_rule
 
 
