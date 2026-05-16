@@ -39,7 +39,9 @@ _AMOUNT_KEY = "amount"
 _DATE_KEY = "date"
 _CATEGORY_KEY = "category"
 
-_ZERO_FLOAT = 0.0
+_ZERO_FLOAT = float(0)
+
+StatsResult = tuple[float, float, float, dict[str, float]]
 
 financial_transactions_storage: list[dict[str, Any]] = []
 
@@ -51,7 +53,10 @@ def is_leap_year(year: int) -> bool:
 
 
 def _parse_date_parts(parts: list[str]) -> tuple[int, int, int]:
-    return int(parts[0]), int(parts[1]), int(parts[2])
+    day = int(parts[0])
+    month = int(parts[1])
+    year = int(parts[2])
+    return day, month, year
 
 
 def _max_days_in_month(month: int, year: int) -> int:
@@ -109,9 +114,13 @@ def cost_handler(category_name: str, amount: float, expense_date: str) -> str:
     return OP_SUCCESS_MSG
 
 
+def _category_entry(category: str, subcategory: str) -> str:
+    return f"{category}::{subcategory}"
+
+
 def cost_categories_handler() -> str:
     entries: list[str] = []
-    entries.extend(f"{key}::{value}" for key, values in EXPENSE_CATEGORIES.items() for value in values)
+    entries.extend(_category_entry(key, value) for key, values in EXPENSE_CATEGORIES.items() for value in values)
     return "\n".join(entries)
 
 
@@ -155,7 +164,7 @@ def _process_transaction(
     return total_delta, month_income_delta, month_expense_delta
 
 
-def compute_stats(day: int, month: int, year: int) -> tuple[float, float, float, dict[str, float]]:
+def compute_stats(day: int, month: int, year: int) -> StatsResult:
     total_capital = _ZERO_FLOAT
     month_income = _ZERO_FLOAT
     month_expenses = _ZERO_FLOAT
