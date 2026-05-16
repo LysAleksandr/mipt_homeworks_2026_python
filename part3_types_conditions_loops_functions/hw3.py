@@ -31,6 +31,11 @@ _LEAP_DIVISOR = 4
 _CENTURY_DIVISOR = 100
 _400_DIVISOR = 400
 
+_INCOME_ARGS_COUNT = 3
+_COST_CATEGORIES_ARGS_COUNT = 2
+_COST_ARGS_COUNT = 4
+_STATS_ARGS_COUNT = 2
+
 financial_transactions_storage: list[dict[str, Any]] = []
 
 
@@ -100,7 +105,9 @@ def cost_categories_handler() -> str:
     )
 
 
-def _compute_stats(day: int, month: int, year: int):
+def compute_stats(
+    day: int, month: int, year: int
+) -> tuple[float, float, float, dict[str, float]]:
     total_capital = 0.0
     month_income = 0.0
     month_expenses = 0.0
@@ -132,7 +139,7 @@ def stats_handler(report_date: str) -> str:
     if parsed is None:
         return INCORRECT_DATE_MSG
     day, month, year = parsed
-    total_capital, month_income, month_expenses, details = _compute_stats(
+    total_capital, month_income, month_expenses, details = compute_stats(
         day, month, year
     )
 
@@ -157,8 +164,8 @@ def stats_handler(report_date: str) -> str:
     return "\n".join(lines)
 
 
-def _handle_income(parts):
-    if len(parts) != 3:
+def handle_income(parts: list[str]) -> None:
+    if len(parts) != _INCOME_ARGS_COUNT:
         print(UNKNOWN_COMMAND_MSG)
         return
     amount_str = parts[1]
@@ -171,11 +178,11 @@ def _handle_income(parts):
     print(income_handler(amount, date_str))
 
 
-def _handle_cost(parts):
-    if len(parts) == 2 and parts[1] == "categories":
+def handle_cost(parts: list[str]) -> None:
+    if len(parts) == _COST_CATEGORIES_ARGS_COUNT and parts[1] == "categories":
         print(cost_categories_handler())
         return
-    if len(parts) != 4:
+    if len(parts) != _COST_ARGS_COUNT:
         print(UNKNOWN_COMMAND_MSG)
         return
     category_name = parts[1]
@@ -192,8 +199,8 @@ def _handle_cost(parts):
         print(cost_categories_handler())
 
 
-def _handle_stats(parts):
-    if len(parts) != 2:
+def handle_stats(parts: list[str]) -> None:
+    if len(parts) != _STATS_ARGS_COUNT:
         print(UNKNOWN_COMMAND_MSG)
         return
     date_str = parts[1]
@@ -217,11 +224,11 @@ def main() -> None:
         command = parts[0]
 
         if command == "income":
-            _handle_income(parts)
+            handle_income(parts)
         elif command == "cost":
-            _handle_cost(parts)
+            handle_cost(parts)
         elif command == "stats":
-            _handle_stats(parts)
+            handle_stats(parts)
         else:
             print(UNKNOWN_COMMAND_MSG)
 
