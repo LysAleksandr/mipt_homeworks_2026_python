@@ -94,7 +94,7 @@ class LFUPolicy(Policy[K]):
 
     def get_key_to_evict(self) -> K | None:
         if len(self._key_counter) > self.capacity:
-            candidates = self._insertion_order[:self.capacity]
+            candidates = self._insertion_order[: self.capacity]
             min_count = min(self._key_counter[k] for k in candidates)
             for k in candidates:
                 if self._key_counter[k] == min_count:
