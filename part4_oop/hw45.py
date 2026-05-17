@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 from part4_oop.interfaces import Cache, HasCache, Policy, Storage
 
@@ -85,20 +85,29 @@ class LRUPolicy(Policy[K]):
 class LFUPolicy(Policy[K]):
     capacity: int = 5
     _key_counter: dict[K, int] = field(default_factory=dict, init=False)
+    _insertion_order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
+        if key not in self._key_counter:
+            self._insertion_order.append(key)
         self._key_counter[key] = self._key_counter.get(key, 0) + 1
 
     def get_key_to_evict(self) -> K | None:
         if len(self._key_counter) > self.capacity:
-            return min(self._key_counter, key=self._key_counter.get)
+            min_count = min(self._key_counter.values())
+            for k in self._insertion_order:
+                if self._key_counter[k] == min_count:
+                    return k
         return None
 
     def remove_key(self, key: K) -> None:
-        self._key_counter.pop(key, None)
+        if key in self._key_counter:
+            self._key_counter.pop(key, None)
+            self._insertion_order.remove(key)
 
     def clear(self) -> None:
         self._key_counter.clear()
+        self._insertion_order.clear()
 
     @property
     def has_keys(self) -> bool:
@@ -134,17 +143,17 @@ class MIPTCache(Cache[K, V]):
         self.policy.clear()
 
 
-class CachedProperty[V]:
+class CachedProperty(Generic[V]):
     def __init__(self, func: Callable[..., V]) -> None:
         self.func = func
 
-    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V:
+    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V | None:
         if instance is None:
-            return self
+            return None
         cache = instance.cache
         key = self.func.__name__
         if cache.exists(key):
             return cache.get(key)
-        result = self.func(instance)
+        result: V = self.func(instance)
         cache.set(key, result)
         return result
