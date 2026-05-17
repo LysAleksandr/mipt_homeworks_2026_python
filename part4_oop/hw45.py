@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from part4_oop.interfaces import Cache, HasCache, Policy, Storage
 
@@ -94,8 +94,9 @@ class LFUPolicy(Policy[K]):
 
     def get_key_to_evict(self) -> K | None:
         if len(self._key_counter) > self.capacity:
-            min_count = min(self._key_counter.values())
-            for k in self._insertion_order:
+            candidates = self._insertion_order[:self.capacity]
+            min_count = min(self._key_counter[k] for k in candidates)
+            for k in candidates:
                 if self._key_counter[k] == min_count:
                     return k
         return None
@@ -143,7 +144,7 @@ class MIPTCache(Cache[K, V]):
         self.policy.clear()
 
 
-class CachedProperty(Generic[V]):
+class CachedProperty[V]:
     def __init__(self, func: Callable[..., V]) -> None:
         self.func = func
 
